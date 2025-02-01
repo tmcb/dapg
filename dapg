@@ -1,0 +1,57 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+use utf8;
+use open ':std', ':encoding(UTF-8)';
+
+use Term::ReadKey;
+
+BEGIN {
+  $| = 1;
+}
+
+my $tty;
+
+local $SIG{INT} =
+local $SIG{QUIT} =
+local $SIG{TERM} =
+sub {
+  if (defined $tty) {
+    ReadMode('normal', *$tty);
+    close($tty);
+  }
+
+  exit;
+};
+
+my $n = 0;
+my $nlines = `tput lines` - 1;
+my $ncols = 0 + `tput cols`;
+
+open($tty, '</dev/tty') or die $!;
+
+while (my $l = <>) {
+  chomp $l;
+  $l =~ s/(.)[\b]\1/$1/g;  # less is smart, dapg is dumb
+  $l =~ s/_[\b]//g;        # less is smart, dapg is dumb
+
+  my $c = 0;
+
+  do {
+    if ($n != 0 && $n % $nlines == 0) {
+      ReadMode('cbreak', *$tty);
+      ReadKey(0, *$tty);
+      ReadMode('normal', *$tty);
+    }
+
+    print(substr($l, $c, $ncols), "\n");
+    $c += $ncols;
+    ++$n;
+  } while ($c <= length($l));
+} continue {
+  close ARGV if eof;
+}
+
+close $tty;
